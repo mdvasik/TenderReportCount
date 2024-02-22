@@ -53,21 +53,30 @@ public class TenderReportServiceImpl implements TenderReportService {
 				return Collections.singletonList(TenderReportUtil.makeResponse(null,
 						"No data found for the specified tender ID.", HttpStatus.NOT_FOUND.value()));
 			}
-		} else {
-			// Fetch data based on organization or department
-			searchingKeyDb = this.tenderReportRepository.findByDepartmentAndOrganization(searchKey, searchValue);
-			System.out.println("SQL Query is:" + searchingKeyDb);
-			if (searchingKeyDb != null && !searchingKeyDb.isEmpty()) {
-				// If data is found, return a success response
-				return Collections.singletonList(
-						TenderReportUtil.makeResponse(searchingKeyDb, "Search successfully", 200));
-			} else {
-				// If no data found, return an error response
-				return Collections.singletonList(TenderReportUtil.makeResponse(null,
-						"No data found for the specified organization or department.", HttpStatus.NOT_FOUND.value()));
+		}  else {
+					searchingKeyDb = this.tenderReportRepository.findByDepartmentAndOrganization(searchKey,
+							searchValue);
+					System.out.println("SQL Query is:" + searchingKeyDb);
+
+					if (searchingKeyDb != null && !searchingKeyDb.isEmpty()) {
+						// If data is found, format the results and return a success response
+						List<Map<String, String>> formattedResults = new ArrayList<>();
+						for (TenderReportCount report : searchingKeyDb) {
+							Map<String, String> formattedResult = new HashMap<>();
+							formattedResult.put("organization", report.getOrganization());
+							formattedResult.put("department", report.getDepartment());
+							formattedResults.add(formattedResult);
+						}
+						return Collections.singletonList(
+								TenderReportUtil.makeResponse(formattedResults, "Search successfully", 200));
+					} else {
+						// If no data found, return an error response
+						return Collections.singletonList(TenderReportUtil.makeResponse(null,
+								"No data found for the specified organization or department.",
+								HttpStatus.NOT_FOUND.value()));
+					}
+				}
 			}
-		}
-	}
 
 	private List<TenderReportCount> applyFilter(List<TenderReportCount> searchingKey, LocalDate searchDate,
 	        String searchValue) {
