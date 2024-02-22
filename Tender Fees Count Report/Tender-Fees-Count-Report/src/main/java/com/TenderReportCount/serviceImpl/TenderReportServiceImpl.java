@@ -3,12 +3,12 @@ package com.TenderReportCount.serviceImpl;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-
 import com.TenderReportCount.entity.TenderReportCount;
 import com.TenderReportCount.enumFilter.FilterOperation;
 import com.TenderReportCount.repository.TenderReportRepository;
@@ -26,9 +26,11 @@ public class TenderReportServiceImpl implements TenderReportService {
 
 	@Override
 	public List<TenderReportResponse> tenderReportCount(String searchKey, LocalDate searchDate, String searchValue) {
+		
 		List<TenderReportCount> searchResults = new ArrayList<>();
-
 		List<TenderReportCount> searchingKeyDb = null;
+		
+		//Searching by Date and Filter operation
 		if ("startDate".equals(searchKey) || "endDate".equals(searchKey) || "publishDate".equals(searchKey)) {
 			// Fetch data based on date
 			List<TenderReportCount> searchingDate = this.tenderReportRepository.findBySearchingKeyByDate(searchKey);
@@ -41,8 +43,10 @@ public class TenderReportServiceImpl implements TenderReportService {
 				// If no data found, return an error response
 				return Collections.singletonList(TenderReportUtil.makeResponse(null,
 						"No data found for the specified date.", HttpStatus.NOT_FOUND.value()));
-			}
-		} else if ("tenderId".equals(searchKey) && searchValue != null && !searchValue.isEmpty()) {
+			       }	
+		    } 
+		//Searching TenderId
+		else if ("tenderId".equals(searchKey) && searchValue != null && !searchValue.isEmpty()) {
 			List<TenderReportCount> searchTenderId = this.tenderReportRepository.findByTenderId(searchValue);
 			if (!searchTenderId.isEmpty()) {
 				// If data is found, return a success response
@@ -52,31 +56,21 @@ public class TenderReportServiceImpl implements TenderReportService {
 				// If no data found, return an error response
 				return Collections.singletonList(TenderReportUtil.makeResponse(null,
 						"No data found for the specified tender ID.", HttpStatus.NOT_FOUND.value()));
-			}
-		}  else {
-					searchingKeyDb = this.tenderReportRepository.findByDepartmentAndOrganization(searchKey,
-							searchValue);
+			       }
+				} 
+		// Fetch data based on organization or department
+					searchingKeyDb = this.tenderReportRepository.findByDepartmentAndOrganization(searchKey, searchValue);
 					System.out.println("SQL Query is:" + searchingKeyDb);
-
 					if (searchingKeyDb != null && !searchingKeyDb.isEmpty()) {
-						// If data is found, format the results and return a success response
-						List<Map<String, String>> formattedResults = new ArrayList<>();
-						for (TenderReportCount report : searchingKeyDb) {
-							Map<String, String> formattedResult = new HashMap<>();
-							formattedResult.put("organization", report.getOrganization());
-							formattedResult.put("department", report.getDepartment());
-							formattedResults.add(formattedResult);
-						}
+						// If data is found, return a success response
 						return Collections.singletonList(
-								TenderReportUtil.makeResponse(formattedResults, "Search successfully", 200));
+								TenderReportUtil.makeResponse(searchingKeyDb, "Search successfully", 200));
 					} else {
 						// If no data found, return an error response
 						return Collections.singletonList(TenderReportUtil.makeResponse(null,
-								"No data found for the specified organization or department.",
-								HttpStatus.NOT_FOUND.value()));
+								"No data found for the specified organization or department.", HttpStatus.NOT_FOUND.value()));
 					}
 				}
-			}
 
 	private List<TenderReportCount> applyFilter(List<TenderReportCount> searchingKey, LocalDate searchDate,
 	        String searchValue) {
@@ -111,5 +105,4 @@ public class TenderReportServiceImpl implements TenderReportService {
 	    
 	    return searchResults;
 	}
-
 }
