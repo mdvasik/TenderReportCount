@@ -1,72 +1,118 @@
 package com.TenderReportCount.repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-
-import com.TenderReportCount.entity.TenderReportCount;
+import com.TenderReportCount.entity.TenderCount;
+import com.TenderReportCount.enumFilter.FilterOperation;
+import com.TenderReportCount.util.TenderReportResponse;
 
 @Repository
-public class TenderReportRepository {
+public class TenderRepository {
 
-	private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
-	public TenderReportRepository(JdbcTemplate jdbcTemplate) {
-		this.jdbcTemplate = jdbcTemplate;
-	}
+    // Method to find Tender entities based on various filters
+    public List<TenderReportResponse> findByFilters(String departmentName, String domainName, LocalDate paymentDate,
+                                      LocalDate eventPublishDateFrom, LocalDate bidSubmissionDateFrom,
+                                      String eventStatus, Long eventId, String filterOperation) {
+        // Constructing the SQL query
+        StringBuilder sql = new StringBuilder("SELECT * FROM Tender_Count_NDA WHERE 1=1");
+        List<Object> params = new ArrayList<>(); // List to hold query parameters
 
-	public List<TenderReportCount> findBySearchingKeyByDate(String searchKey) {
-		String sql = "SELECT * FROM TenderReport_Count_Wise";
-		return jdbcTemplate.query(sql, new TenderReportCountRowMapper());
-	}
+        // Adding departmentName filter if provided
+        if (departmentName != null) {
+            sql.append(" AND DepartmentName = ?");
+            params.add(departmentName);
+        }
 
-	private static class TenderReportCountRowMapper implements RowMapper<TenderReportCount> {
+        // Adding domainName filter if provided
+        if (domainName != null) {
+            sql.append(" AND domainName = ?");
+            params.add(domainName);
+        }
 
-		@Override
-		public TenderReportCount mapRow(ResultSet rs, int rowNum) throws SQLException {
-			TenderReportCount tenderReportCount = new TenderReportCount();
+        // Adding date filters for paymentDate, eventPublishDateFrom, and bidSubmissionDateFrom
+        appendDateFilter(sql, params, "PaymentDate", paymentDate, filterOperation);
+        appendDateFilter(sql, params, "EventPublishDateFrom", eventPublishDateFrom, filterOperation);
+        appendDateFilter(sql, params, "BidSubmissionDateFrom", bidSubmissionDateFrom, filterOperation);
 
-			// Map columns of the ResultSet to fields of the TenderReportCount object
-			tenderReportCount.setSrNo(rs.getFloat("Sr_No"));
-			tenderReportCount.setTenderId(rs.getFloat("tenderid"));
-			tenderReportCount.setTenderNo(rs.getString("tenderNo"));
-			tenderReportCount.setTenderBrief(rs.getString("tenderBrief"));
-			tenderReportCount.setTotalEMDPaid(rs.getFloat("TotalEMDPaid"));
-			tenderReportCount.setTotalDocFees(rs.getFloat("TotalDocFees"));
-			tenderReportCount.setTotalEventwiseReg(rs.getFloat("TotalEventwiseReg"));
-			tenderReportCount.setTotalFinalSubmission(rs.getFloat("TotalFinalSubmission"));
-			tenderReportCount.setDomainName(rs.getString("domainName"));
-			tenderReportCount.setClientName(rs.getString("clientName"));
-			tenderReportCount.setStartDate(rs.getDate("StartDate").toLocalDate());
-			tenderReportCount.setEndDate(rs.getDate("EndDate").toLocalDate());
-			tenderReportCount.setPublishDate(rs.getDate("PublishDate").toLocalDate());
-			tenderReportCount.setOrganization(rs.getString("Organization"));
-			tenderReportCount.setDepartment(rs.getString("Department"));
+        // Adding eventStatus filter if provided
+        if (eventStatus != null) {
+            sql.append(" AND EventStatus = ?");
+            params.add(eventStatus);
+        }
 
-			return tenderReportCount;
-		}
-	}
+        // Adding eventId filter if provided
+        if (eventId != null) {
+            sql.append(" AND Eventid = ?");
+            params.add(eventId);
+        }
 
-	public List<TenderReportCount> findByTenderId(String searchValue) {
-		String sql = "SELECT * FROM TenderReport_Count_Wise WHERE tenderid = ?";
-		return jdbcTemplate.query(sql, new Object[] { Double.parseDouble(searchValue) },
-				new TenderReportCountRowMapper());
-	}
+        // Executing the SQL query and returning the results
+        List<TenderCount> tenders = jdbcTemplate.query(sql.toString(), params.toArray(), new BeanPropertyRowMapper<>(TenderCount.class));
+        List<TenderReportResponse> tenderReportResponses = new ArrayList<>();
+        for (TenderCount tender : tenders) {
+            TenderReportResponse reportResponse = new TenderReportResponse();
+            // Populate the reportResponse object from the Tender object
+            // This might involve mapping attributes from Tender to TenderReportResponse
+            reportResponse.setMessage("Search Successfully"); // Setting the message
+            reportResponse.setStatusCode(200); // Example mapping
+            reportResponse.setData(tender); // Example mapping
+            tenderReportResponses.add(reportResponse);
+        }
+        return tenderReportResponses;
+    }
 
-	public List<TenderReportCount> findByDepartmentAndOrganization(String searchKey, String searchValue) {
-		String sql = "SELECT * FROM TenderReport_Count_Wise WHERE " + searchKey.toLowerCase() + " ILIKE ?";
-		return jdbcTemplate.query(sql, new Object[] { "%" + searchValue.toLowerCase() + "%" },
-				new TenderReportCountRowMapper());
-	}
-	
-//	public List<TenderReportCount> findByDepartmentAndOrganization(String searchKey, String searchValue) {
-//		String sql = "SELECT * FROM TenderReport_Count_Wise WHERE Organization ILIKE ? OR Department ILIKE ?";
-//	    return jdbcTemplate.query(sql, new Object[] { "%" + searchValue.toLowerCase() + "%", "%" + searchValue.toLowerCase() + "%" },
-//	            new TenderReportCountRowMapper());
-//	}
+    // Helper method to append date filter to the SQL query
+    private void appendDateFilter(StringBuilder sql, List<Object> params, String fieldName, LocalDate date, String symbolName) {
+        if (date != null && symbolName != null) {
+            FilterOperation operation = FilterOperation.fromSymbol(symbolName); // Get the filter operation from symbol
 
+            // Applying the appropriate filter operation to the SQL query
+            switch (operation) {
+                case EQUAL_TO:
+                    sql.append(" AND ").append(fieldName).append(" = ?");
+                    params.add(date);
+                    break;
+                case LESS_THAN:
+                    sql.append(" AND ").append(fieldName).append(" < ?");
+                    params.add(date);
+                    break;
+                case LESS_THAN_OR_EQUAL_TO:
+                    sql.append(" AND ").append(fieldName).append(" <= ?");
+                    params.add(date);
+                    break;
+                case GREATER_THAN:
+                    sql.append(" AND ").append(fieldName).append(" > ?");
+                    params.add(date);
+                    break;
+                case GREATER_THAN_OR_EQUAL_TO:
+                    sql.append(" AND ").append(fieldName).append(" >= ?");
+                    params.add(date);
+                    break;
+                case NOT_EQUAL:
+                    sql.append(" AND ").append(fieldName).append(" <> ?");
+                    params.add(date);
+                    break;
+                case BETWEEN:
+                    // Calculate the end date for the BETWEEN operation
+                    LocalDate endDate = date.plusDays(1);
+                    // Construct the BETWEEN condition in SQL
+                    sql.append(" AND ").append(fieldName).append(" BETWEEN ? AND ?");
+                    // Add start date and end date parameters
+                    params.add(date);
+                    params.add(endDate);
+                    break;
+                default:
+                    // Throw an exception for unsupported filter operations
+                    throw new IllegalArgumentException("Invalid filter operation: " + operation);
+            }
+        }
+    }
 }
