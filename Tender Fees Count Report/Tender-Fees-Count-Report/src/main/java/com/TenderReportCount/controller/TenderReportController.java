@@ -5,29 +5,32 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.TenderReportCount.entity.TenderReportCount;
-import com.TenderReportCount.service.TenderReportService;
+import com.TenderReportCount.service.TenderService;
 import com.TenderReportCount.util.TenderReportResponse;
 
 @RestController
 @RequestMapping("/tenderReport")
-public class TenderReportController {
+public class TenderController {
     
     @Autowired
-    private TenderReportService tenderReportService;
+    private TenderService tenderService;
     
-    @GetMapping("/filterSearch")
-    public List<TenderReportResponse> reportCount(
-            @RequestParam(required = false , name = "searchKey") String searchKey,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate searchDate,
-            @RequestParam(required = false , name = "searchValue") String searchValue
-    ) {
-
-    	return this.tenderReportService.tenderReportCount(searchKey, searchDate, searchValue);   	
+    @GetMapping("/filter")
+    public ResponseEntity<List<TenderReportResponse>> getFilteredTenders(@RequestParam(required = false, name = "departmentName") String departmentName,
+                                                           @RequestParam(required = false, name = "domainName") String domainName,
+                                                           @RequestParam(required = false, name = "paymentDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paymentDate,
+                                                           @RequestParam(required = false, name = "eventPublishDateFrom") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate eventPublishDateFrom,
+                                                           @RequestParam(required = false, name = "bidSubmissionDateFrom") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bidSubmissionDateFrom,
+                                                           @RequestParam(required = false, name = "eventStatus") String eventStatus,
+                                                           @RequestParam(required = false, name = "eventId") Long eventId,
+                                                           @RequestParam(required = false, name = "filterOperation") String filterOperation ) {
+        List<TenderReportResponse> tenders = tenderService.getFilteredTenders(departmentName, domainName, paymentDate, eventPublishDateFrom, bidSubmissionDateFrom, eventStatus, eventId, filterOperation);
+        return ResponseEntity.ok(tenders);
     }
 }
